@@ -1,34 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Proofmark
 
-## Getting Started
+Proofmark is an AI-assisted alcohol label verification prototype for TTB compliance agents. It compares application values with visible label evidence, checks the statutory government warning, supports batch review, and keeps the final decision with the agent.
 
-First, run the development server:
+## Run locally
+
+Requirements: Node.js 20.9 or newer and npm.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. Without credentials, the complete workflow runs in clearly identified **demo simulation** mode. Filenames containing `review`, `mismatch`, or `fail` produce a sample ABV discrepancy so both outcomes are easy to evaluate.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To use real vision analysis:
 
-## Learn More
+```bash
+cp .env.example .env.local
+# Set OPENAI_API_KEY in .env.local
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+The key is read only by the server route and is never included in browser code. For an Azure/FedRAMP deployment, replace the provider adapter in `src/app/api/analyze/route.ts` with an approved Azure OpenAI private endpoint; the comparison and UI layers remain unchanged.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Quality checks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run lint       # strict TypeScript validation
+npm test           # deterministic comparison tests
+npm run build      # production compilation
+npm audit          # production and development dependencies
+```
 
-## Deploy on Vercel
+## Approach
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. The agent enters the authoritative application values and adds up to 20 JPEG, PNG, or WebP labels.
+2. The server validates request size, MIME type, file signature, field lengths, and origin.
+3. Vision AI extracts visible evidence into a strict schema. It does not make the compliance decision.
+4. Deterministic code performs normalized field comparisons and the exact warning check.
+5. The UI presents expected and observed evidence, confidence, and a recommendation for human review.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sequential batch processing protects the five-second interaction target for each item and avoids overwhelming a model endpoint. A production system handling 200-300 files should use direct-to-approved-object-storage uploads, a durable queue, bounded workers, malware scanning, and progress events rather than increasing the in-request limit.
+
+## Secure AI design
+
+- **Prompt injection resistance:** image text is explicitly treated as untrusted data and never as instructions.
+- **Constrained output:** model output is JSON-parsed and validated with Zod; unknown or malformed responses fail closed.
+- **Grounded decisions:** AI extracts evidence only. Deterministic rules compare fields and exact statutory text.
+- **Human oversight:** recommendations are advisory, evidence is visible, and unreadable or incomplete images route to manual review.
+- **Data minimization:** uploads are held in memory for one request, sent only to the configured provider, and never persisted or logged.
+- **Availability controls:** 4.5-second provider timeout, 8 MB file cap, request cap, sequential processing, and basic rate limiting.
+- **Provider isolation:** credentials remain server-side; browser CSP allows network requests only to the application origin.
+
+See [SECURITY.md](SECURITY.md) for the threat model and production requirements.
+
+## WCAG 2.2 AA target
+
+The interface uses semantic landmarks and heading order, explicit input labels, table headers and captions, a skip link, keyboard-operable controls, 44px targets, visible focus, text-plus-icon status indicators, an `aria-live` progress message, high-contrast tokens, responsive reflow, and reduced-motion support. Automated tooling cannot establish full conformance; production release still requires keyboard, screen-reader, zoom/reflow, and representative-user testing.
+
+## Assumptions and limitations
+
+- The statutory warning check compares normalized words and separately requires uppercase and bold heading signals. Font size and physical placement require human confirmation because image pixels do not establish printed dimensions reliably.
+- A single application record applies to every file in a batch. A production importer flow should accept a manifest pairing each record to its artwork.
+- In-memory throttling is prototype protection only. Production requires gateway-level distributed rate limits, authentication, authorization, audit events, retention enforcement, and malware scanning.
+- Real AI latency and extraction quality depend on the approved model and network. Demo mode is deterministic and does not inspect pixels.
+- This prototype does not integrate with COLA and does not issue legal approvals or rejections.
+
+## Deploy
+
+Deploy to a Node-compatible host (for example Azure App Service or Vercel), configure `OPENAI_API_KEY` as a secret, and run `npm run build && npm start`. Do not expose the key through a `NEXT_PUBLIC_` variable. Production deployment should terminate TLS, enforce authentication, and configure provider egress allowlisting before accepting agency data.
