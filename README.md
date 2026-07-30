@@ -30,7 +30,26 @@ npm run lint       # strict TypeScript validation
 npm test           # deterministic comparison tests
 npm run build      # production compilation
 npm audit          # production and development dependencies
+npm run sbom       # regenerate the CycloneDX runtime inventory
 ```
+
+## Assurance artifacts
+
+The repository includes a concise review package intended to make architecture, operational assumptions, risk, and evidence inspectable without turning the prototype into an acquisition binder.
+
+| Artifact | Reviewer question answered |
+|---|---|
+| [Architecture](docs/architecture.md) | What are the components, boundaries, and data flows? |
+| [Technical specification](docs/technical-specification.md) | What does the prototype do and what are its contracts and limits? |
+| [Threat model](docs/threat-model.md) | How could the system be attacked, and what remains for production? |
+| [AI system card and AIBOM](docs/ai-system-card.md) | Which AI components are used, for what purpose, and under what controls? |
+| [CONOPS](docs/conops.md) | How would agents use the system in normal and degraded operations? |
+| [Test report](docs/test-report.md) | What was tested, what passed, and what evidence is still missing? |
+| [Future enhancements](docs/future-enhancements.md) | What is the risk-based path from prototype to operational capability? |
+| [Architecture decisions](docs/adr/) | Why are rules deterministic, inference server-side, and decisions human? |
+| [CycloneDX SBOM](sbom.cdx.json) | Which runtime packages and versions compose this build? |
+
+The SBOM is generated from `package-lock.json` and should be regenerated for every release. [SECURITY.md](SECURITY.md) states the prototype security boundary and production prerequisites.
 
 ## Approach
 
