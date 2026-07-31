@@ -139,3 +139,9 @@ resource "aws_apprunner_service" "app" {
 
   depends_on = [aws_iam_role_policy_attachment.apprunner_ecr]
 }
+
+resource "aws_apprunner_custom_domain_association" "app" {
+  domain_name          = var.custom_domain_name
+  enable_www_subdomain = false
+  service_arn          = aws_apprunner_service.app.arn
+}

@@ -10,6 +10,12 @@ variable "name" {
   default     = "proofmark"
 }
 
+variable "custom_domain_name" {
+  description = "Custom domain associated with the App Runner service. DNS validation records must be configured with the authoritative DNS provider."
+  type        = string
+  default     = "proofmark.ivproduced.com"
+}
+
 variable "image_tag" {
   description = "Immutable ECR image tag deployed by App Runner."
   type        = string

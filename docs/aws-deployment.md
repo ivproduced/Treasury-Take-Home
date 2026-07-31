@@ -49,6 +49,18 @@ The `.secrets` directory is ignored by Git. Delete the local key file securely a
 
 For persistent team environments, configure a remote Terraform backend before the first shared deployment. Do not commit local state or populated `.tfvars` files. Copy `infra/terraform/terraform.tfvars.example` to a local `.tfvars` file for non-secret overrides.
 
+### Custom domain
+
+Terraform associates `proofmark.ivproduced.com` with App Runner, while Bluehost remains the authoritative DNS provider. In Bluehost DNS, create the application CNAME using the `custom_domain_dns_target` Terraform output and create every certificate-validation CNAME reported by:
+
+```bash
+aws apprunner describe-custom-domains \
+  --region "$AWS_REGION" \
+  --service-arn "$(terraform -chdir=infra/terraform output -raw service_arn)"
+```
+
+Keep the validation CNAMEs in DNS so App Runner can renew its managed TLS certificate. The custom domain becomes available after App Runner reports its status as `active`.
+
 ### Manual Terraform workflow
 
 The script is a convenience, not a separate deployment system. Its equivalent first deployment is:
