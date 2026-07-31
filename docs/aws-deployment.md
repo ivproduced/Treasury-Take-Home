@@ -2,74 +2,71 @@
 
 Proofmark runs on AWS App Runner as a container stored in Amazon ECR. This keeps the server-rendered application and `/api/analyze` route in one managed service. S3 static website hosting is not compatible with the API route.
 
-## Prerequisites
+## Terraform deployment
+
+Terraform manages the ECR repository, lifecycle policy, least-privilege App Runner roles, autoscaling configuration, and App Runner service. The deployment script handles the required artifact ordering: ECR must exist before the first image can be pushed, and that image must exist before App Runner can start.
+
+### Prerequisites
 
 - An AWS account and an IAM principal that can manage ECR, App Runner, IAM, and Secrets Manager
 - AWS CLI v2 authenticated to the target account
 - Docker with BuildKit enabled
-- A chosen AWS region; the examples use `us-east-1`
+- Terraform 1.7 or newer
+- A chosen AWS region; the default is `us-east-1`
 
-Set deployment variables for the current shell:
+Authenticate the AWS CLI, start Docker, and run:
 
 ```bash
 export AWS_REGION=us-east-1
-export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-export ECR_REPOSITORY=proofmark
-export IMAGE_TAG="$(git rev-parse --short HEAD)"
+./scripts/deploy-aws.sh
 ```
 
-## Build and publish
+The script uses the current Git commit as an immutable image tag. A dirty worktree receives a timestamped `dirty` suffix to prevent collisions; committed releases are recommended for traceability. Set `IMAGE_TAG` to select another unique release tag. Terraform prompts for approval twice on the first deployment: once for ECR, then once for the complete service.
 
-Create the private image repository once:
+To enable real vision analysis, create the API key secret outside Terraform so its value never enters Terraform state:
 
 ```bash
-aws ecr describe-repositories \
+mkdir -p .secrets
+# Enter only the API key in .secrets/openai-api-key, without a trailing newline.
+aws secretsmanager create-secret \
   --region "$AWS_REGION" \
-  --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 || \
-aws ecr create-repository \
-  --region "$AWS_REGION" \
-  --repository-name "$ECR_REPOSITORY" \
-  --image-scanning-configuration scanOnPush=true \
-  --encryption-configuration encryptionType=AES256
+  --name proofmark/openai \
+  --secret-string file://.secrets/openai-api-key
 ```
 
-Build for App Runner and push the immutable release tag:
+Then pass only its ARN to Terraform:
 
 ```bash
-export ECR_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY"
-
-aws ecr get-login-password --region "$AWS_REGION" | \
-  docker login --username AWS --password-stdin \
-  "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-
-docker build --platform linux/amd64 -t "$ECR_URI:$IMAGE_TAG" .
-docker push "$ECR_URI:$IMAGE_TAG"
+export TF_VAR_openai_api_key_secret_arn="$(aws secretsmanager describe-secret \
+  --region "$AWS_REGION" \
+  --secret-id proofmark/openai \
+  --query ARN \
+  --output text)"
+./scripts/deploy-aws.sh
 ```
 
-Use `linux/arm64` instead when the App Runner service is intentionally configured for ARM64.
+The `.secrets` directory is ignored by Git. Delete the local key file securely after creating the secret. Without a secret ARN, Proofmark deploys in demo simulation mode.
 
-## Create the service
+For persistent team environments, configure a remote Terraform backend before the first shared deployment. Do not commit local state or populated `.tfvars` files. Copy `infra/terraform/terraform.tfvars.example` to a local `.tfvars` file for non-secret overrides.
 
-In the AWS console, open **App Runner**, create a service, and choose **Container registry** followed by **Amazon ECR**.
+### Manual Terraform workflow
 
-Configure the service as follows:
+The script is a convenience, not a separate deployment system. Its equivalent first deployment is:
 
-| Setting | Value |
-|---|---|
-| Image URI | The `$ECR_URI:$IMAGE_TAG` value pushed above |
-| Deployment trigger | Manual for controlled releases; automatic for a mutable release tag |
-| Port | `8080` |
-| CPU and memory | Start with 1 vCPU and 2 GB |
-| Health check | TCP |
-| Environment variable | `OPENAI_VISION_MODEL=gpt-4.1-mini` |
+1. Run `terraform -chdir=infra/terraform init`.
+2. Apply the ECR repository with `terraform -chdir=infra/terraform apply -target=aws_ecr_repository.app -target=aws_ecr_lifecycle_policy.app`.
+3. Build the container and push an immutable tag to the `ecr_repository_url` output.
+4. Run the full apply with the same tag: `terraform -chdir=infra/terraform apply -var='image_tag=YOUR_TAG'`.
 
-The application works in demo simulation mode without an API key. For real vision analysis, store the key in AWS Secrets Manager, grant the App Runner instance role `secretsmanager:GetSecretValue` for that secret, and map it to the runtime secret environment variable `OPENAI_API_KEY`. Never configure it as a build argument or a `NEXT_PUBLIC_` variable.
+The targeted first apply is necessary only because Terraform does not build container artifacts and App Runner rejects a service whose image does not exist.
 
-App Runner creates a default HTTPS URL after the service becomes healthy. Verify both the home page and an analysis request before attaching a custom domain.
+### Destroy
+
+Run `terraform -chdir=infra/terraform destroy` to remove the App Runner service, IAM roles, and ECR repository. ECR deletion fails while images remain, intentionally protecting release artifacts. Delete the repository images first only when permanent teardown is intended.
 
 ## Release an update
 
-Build and push a new immutable tag, then update the App Runner service to that image tag. Keep the previous ECR tag available for rollback. Do not overwrite a deployed tag because image provenance and rollback become ambiguous.
+Run `./scripts/deploy-aws.sh` from a new Git commit, or set a unique `IMAGE_TAG`. The ECR repository rejects tag overwrites. Keep the previous ECR tag available for rollback by applying its tag as `image_tag`.
 
 ## Production controls
 

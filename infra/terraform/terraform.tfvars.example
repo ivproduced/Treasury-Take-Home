@@ -1,0 +1,11 @@
+aws_region = "us-east-1"
+name       = "proofmark"
+
+# Reference an existing secret. Do not put the API key itself in this file.
+# openai_api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:proofmark/openai-AbCdEf"
+
+tags = {
+  Application = "Proofmark"
+  Environment = "production"
+  ManagedBy   = "Terraform"
+}
