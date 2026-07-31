@@ -3,9 +3,13 @@
 .next
 coverage
 docs
+infra
 node_modules
+scripts
 .env*
 !.env.example
+*.tfstate
+*.tfstate.*
 npm-debug.log*
 README.md
 sbom.cdx.json
