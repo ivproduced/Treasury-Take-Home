@@ -2,6 +2,10 @@
 
 Proofmark is an AI-assisted alcohol label verification prototype for TTB compliance agents. It compares application values with visible label evidence, checks the statutory government warning, supports batch review, and keeps the final decision with the agent.
 
+## Live application
+
+[Open Proofmark](https://proofmark.ivproduced.com)
+
 ## Run locally
 
 Requirements: Node.js 20.9 or newer and npm.
