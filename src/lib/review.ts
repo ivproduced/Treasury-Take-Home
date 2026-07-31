@@ -3,11 +3,18 @@ import { z } from "zod";
 export const GOVERNMENT_WARNING =
   "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.";
 
+export const APPLICATION_FIELD_LIMITS = {
+  brandName: 120,
+  classType: 160,
+  alcoholContent: 40,
+  netContents: 40,
+} as const;
+
 export const applicationSchema = z.object({
-  brandName: z.string().trim().min(1).max(120),
-  classType: z.string().trim().min(1).max(160),
-  alcoholContent: z.string().trim().min(1).max(40),
-  netContents: z.string().trim().min(1).max(40),
+  brandName: z.string().trim().min(1).max(APPLICATION_FIELD_LIMITS.brandName),
+  classType: z.string().trim().min(1).max(APPLICATION_FIELD_LIMITS.classType),
+  alcoholContent: z.string().trim().min(1).max(APPLICATION_FIELD_LIMITS.alcoholContent),
+  netContents: z.string().trim().min(1).max(APPLICATION_FIELD_LIMITS.netContents),
 });
 
 export const extractionSchema = z.object({
@@ -84,7 +91,7 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
     fieldCheck("Net contents", application.netContents, extraction.netContents),
     {
       field: "Government warning",
-      expected: "Exact statutory text; heading uppercase and bold",
+      expected: "Normalized statutory text; heading uppercase and bold",
       observed: extraction.governmentWarning ?? "Not detected",
       status: warningStatus,
       detail: warningPasses

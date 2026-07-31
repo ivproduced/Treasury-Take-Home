@@ -87,4 +87,6 @@ The interface uses semantic landmarks and heading order, explicit input labels, 
 
 ## Deploy
 
-Deploy to a Node-compatible host (for example Azure App Service or Vercel), configure `OPENAI_API_KEY` as a secret, and run `npm run build && npm start`. Do not expose the key through a `NEXT_PUBLIC_` variable. Production deployment should terminate TLS, enforce authentication, and configure provider egress allowlisting before accepting agency data.
+The repository includes a production container and an [AWS App Runner deployment guide](docs/aws-deployment.md). App Runner preserves the server-side analysis route, terminates TLS, and runs the application from a private ECR image. Configure `OPENAI_API_KEY` as an App Runner runtime secret; do not expose it through a `NEXT_PUBLIC_` variable.
+
+Production deployment must also enforce authentication and configure provider egress allowlisting before accepting agency data.

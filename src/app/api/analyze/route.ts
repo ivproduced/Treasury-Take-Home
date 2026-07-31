@@ -5,20 +5,44 @@ export const runtime = "nodejs";
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const MAX_REQUEST_BYTES = MAX_FILE_BYTES + 64 * 1024;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_KEY = 30;
+const MAX_REQUESTS_PER_PROCESS = 300;
+const MAX_RATE_LIMIT_KEYS = 1_000;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
+let processRequestCount = { count: 0, resetAt: 0 };
+let nextRateLimitCleanup = 0;
+
+class RequestTooLargeError extends Error {}
 
 function isRateLimited(request: Request) {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const key = forwardedFor || "local";
   const now = Date.now();
+
+  if (nextRateLimitCleanup <= now) {
+    for (const [storedKey, value] of requestCounts) {
+      if (value.resetAt <= now) requestCounts.delete(storedKey);
+    }
+    nextRateLimitCleanup = now + RATE_LIMIT_WINDOW_MS;
+  }
+
+  if (processRequestCount.resetAt <= now) {
+    processRequestCount = { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  } else {
+    processRequestCount.count += 1;
+  }
+  if (processRequestCount.count > MAX_REQUESTS_PER_PROCESS) return true;
+
   const current = requestCounts.get(key);
   if (!current || current.resetAt <= now) {
-    requestCounts.set(key, { count: 1, resetAt: now + 60_000 });
+    if (!current && requestCounts.size >= MAX_RATE_LIMIT_KEYS) return true;
+    requestCounts.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return false;
   }
   current.count += 1;
-  return current.count > 30;
+  return current.count > MAX_REQUESTS_PER_KEY;
 }
 
 function isSameOrigin(request: Request) {
@@ -36,6 +60,34 @@ function hasValidSignature(bytes: Uint8Array, type: string) {
 
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+async function parseBoundedFormData(request: Request) {
+  if (!request.body) throw new SyntaxError("Request body is missing");
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_REQUEST_BYTES) {
+      await reader.cancel();
+      throw new RequestTooLargeError();
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new Response(body, { headers: { "Content-Type": request.headers.get("content-type") ?? "" } }).formData();
 }
 
 async function extractWithVision(file: File) {
@@ -82,12 +134,16 @@ export async function POST(request: Request) {
   try {
     if (!isSameOrigin(request)) return errorResponse("Cross-origin requests are not allowed.", 403);
     if (isRateLimited(request)) return errorResponse("Too many requests. Wait a minute and try again.", 429);
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_REQUEST_BYTES) return errorResponse("Upload is larger than the 8 MB limit.", 413);
+    const contentLengthHeader = request.headers.get("content-length");
+    if (contentLengthHeader !== null) {
+      const contentLength = Number(contentLengthHeader);
+      if (!Number.isSafeInteger(contentLength) || contentLength < 0) return errorResponse("Content-Length was invalid.", 400);
+      if (contentLength > MAX_REQUEST_BYTES) return errorResponse("Upload is larger than the 8 MB limit.", 413);
+    }
     const contentType = request.headers.get("content-type") ?? "";
     if (!contentType.startsWith("multipart/form-data")) return errorResponse("Expected a multipart form upload.", 415);
 
-    const formData = await request.formData();
+    const formData = await parseBoundedFormData(request);
     const file = formData.get("label");
     const rawApplication = formData.get("application");
     if (!(file instanceof File) || typeof rawApplication !== "string") return errorResponse("Label image and application fields are required.", 400);
@@ -105,6 +161,7 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
     );
   } catch (error) {
+    if (error instanceof RequestTooLargeError) return errorResponse("Upload is larger than the 8 MB limit.", 413);
     if (error instanceof SyntaxError) return errorResponse("Application data was not valid JSON.", 400);
     if (error && typeof error === "object" && "issues" in error) return errorResponse("Application or AI output did not match the required schema.", 422);
     console.error("Label analysis failed", error instanceof Error ? error.message : "Unknown error");

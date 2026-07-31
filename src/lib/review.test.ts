@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareExtraction, GOVERNMENT_WARNING, type ApplicationFields, type Extraction } from "./review";
+import { APPLICATION_FIELD_LIMITS, applicationSchema, compareExtraction, GOVERNMENT_WARNING, type ApplicationFields, type Extraction } from "./review";
 
 const application: ApplicationFields = {
   brandName: "Stone's Throw",
@@ -47,5 +47,18 @@ describe("compareExtraction", () => {
 
     expect(result.recommendation).toBe("manual-review");
     expect(result.confidence).toBe("low");
+  });
+});
+
+describe("applicationSchema", () => {
+  it("uses the exported field limits", () => {
+    expect(applicationSchema.safeParse({
+      ...application,
+      alcoholContent: "x".repeat(APPLICATION_FIELD_LIMITS.alcoholContent + 1),
+    }).success).toBe(false);
+    expect(applicationSchema.safeParse({
+      ...application,
+      netContents: "x".repeat(APPLICATION_FIELD_LIMITS.netContents),
+    }).success).toBe(true);
   });
 });

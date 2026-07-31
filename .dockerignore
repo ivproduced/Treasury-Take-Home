@@ -1,0 +1,11 @@
+.git
+.github
+.next
+coverage
+docs
+node_modules
+.env*
+!.env.example
+npm-debug.log*
+README.md
+sbom.cdx.json

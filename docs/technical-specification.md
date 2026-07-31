@@ -26,7 +26,7 @@ Proofmark verifies whether visible label evidence corresponds to one application
 | QR-02 | Accessibility | WCAG 2.2 AA target; semantics, keyboard operation, reflow, focus, live status, contrast, reduced motion |
 | QR-03 | Confidentiality | Server-only API key, no application persistence, no-store responses, restrictive CSP |
 | QR-04 | Integrity | MIME and magic-byte checks, Zod schemas, deterministic comparison |
-| QR-05 | Availability | 8 MiB request control, 30 requests/minute in-memory throttle, sequential client processing |
+| QR-05 | Availability | Bounded 8 MiB multipart parsing, per-client and process-wide in-memory throttles, sequential client processing |
 | QR-06 | Explainability | Field-level expected/observed values, detail, status, source mode, and confidence |
 
 ## 4. Interface contract

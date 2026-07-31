@@ -13,7 +13,7 @@ This report records prototype verification performed during implementation. It i
 | Check | Command | Result |
 |---|---|---|
 | Strict TypeScript | `npm run lint` | Pass |
-| Unit tests | `npm test` | Pass: 4 tests |
+| Unit tests | `npm test` | Pass: 7 tests across 2 files |
 | Production compilation | `npm run build` | Pass |
 | Dependency audit | `npm audit` | Pass: 0 known vulnerabilities at test time |
 | Runtime SBOM | `npm run sbom` | Pass: CycloneDX 1.6, 24 runtime components |
@@ -24,6 +24,9 @@ Unit coverage verifies:
 2. A conflicting alcohol-content value produces a mismatch.
 3. Incorrect government-warning heading treatment produces a mismatch.
 4. Missing evidence in an unreadable image routes to manual review with low confidence.
+5. Shared application field limits accept boundary values and reject oversized values.
+6. Lengthless multipart bodies over the request limit are rejected before parsing.
+7. Valid lengthless multipart requests remain supported.
 
 ## Runtime security checks
 
@@ -38,6 +41,8 @@ Unit coverage verifies:
 ## Workflow checks
 
 Two valid synthetic PNG fixtures were queued and processed in demo mode. The standard filename produced `appears compliant`; a filename containing `mismatch` produced `does not match`. The live region announced `2 of 2 labels analyzed`, and both items exposed five-row comparison tables.
+
+Changing an application field after analysis cleared the stale result and caused the label to be analyzed again. Browser field limits matched the server schema at 120, 160, 40, and 40 characters.
 
 ## Accessibility checks
 

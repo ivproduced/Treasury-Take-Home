@@ -3,7 +3,7 @@
 import { ChangeEvent, DragEvent, FormEvent, useRef, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, FileImage, LoaderCircle, LockKeyhole, ShieldCheck, Upload, X } from "lucide-react";
 import Image from "next/image";
-import type { ApplicationFields, ReviewResult } from "@/lib/review";
+import { APPLICATION_FIELD_LIMITS, type ApplicationFields, type ReviewResult } from "@/lib/review";
 
 type QueueItem = { id: string; file: File; preview: string; status: "ready" | "processing" | "complete" | "error"; result?: ReviewResult; error?: string };
 
@@ -21,6 +21,8 @@ export default function ReviewWorkspace() {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const controllersRef = useRef(new Map<string, AbortController>());
+  const removedItemIdsRef = useRef(new Set<string>());
 
   function addFiles(files: File[]) {
     const accepted = files.filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 8 * 1024 * 1024).slice(0, 20 - items.length);
@@ -38,11 +40,20 @@ export default function ReviewWorkspace() {
   }
 
   function removeItem(id: string) {
+    removedItemIdsRef.current.add(id);
+    controllersRef.current.get(id)?.abort();
     setItems((current) => {
       const item = current.find((candidate) => candidate.id === id);
       if (item) URL.revokeObjectURL(item.preview);
       return current.filter((candidate) => candidate.id !== id);
     });
+  }
+
+  function updateField(key: keyof ApplicationFields, value: string) {
+    setFields((current) => ({ ...current, [key]: value }));
+    setItems((current) => current.map((item) => item.status === "complete"
+      ? { ...item, status: "ready", result: undefined, error: undefined }
+      : item));
   }
 
   async function analyze(event: FormEvent) {
@@ -51,20 +62,26 @@ export default function ReviewWorkspace() {
     setIsRunning(true);
 
     for (const item of items) {
-      if (item.status === "complete") continue;
+      if (item.status === "complete" || removedItemIdsRef.current.has(item.id)) continue;
+      const controller = new AbortController();
+      controllersRef.current.set(item.id, controller);
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, status: "processing", error: undefined } : candidate));
       try {
         const body = new FormData();
         body.set("label", item.file);
         body.set("application", JSON.stringify(fields));
-        const response = await fetch("/api/analyze", { method: "POST", body });
+        const response = await fetch("/api/analyze", { method: "POST", body, signal: controller.signal });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Analysis failed.");
         setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, status: "complete", result: payload } : candidate));
       } catch (error) {
+        if (controller.signal.aborted) continue;
         setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, status: "error", error: error instanceof Error ? error.message : "Analysis failed." } : candidate));
+      } finally {
+        controllersRef.current.delete(item.id);
       }
     }
+    for (const item of items) removedItemIdsRef.current.delete(item.id);
     setIsRunning(false);
   }
 
@@ -99,7 +116,7 @@ export default function ReviewWorkspace() {
               ["alcoholContent", "Alcohol content"],
               ["netContents", "Net contents"],
             ] as const).map(([key, label]) => (
-              <label key={key}>{label}<input required maxLength={key === "classType" ? 160 : 120} value={fields[key]} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} /></label>
+              <label key={key}>{label}<input required disabled={isRunning} maxLength={APPLICATION_FIELD_LIMITS[key]} value={fields[key]} onChange={(event) => updateField(key, event.target.value)} /></label>
             ))}
           </div>
         </section>
