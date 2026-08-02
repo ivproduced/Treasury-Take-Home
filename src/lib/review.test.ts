@@ -35,6 +35,26 @@ describe("compareExtraction", () => {
     expect(result.checks.find((check) => check.field === "Alcohol content")?.status).toBe("fail");
   });
 
+  it("rejects alcohol content that omits the required percent symbol", () => {
+    const result = compareExtraction(application, { ...compliantExtraction, alcoholContent: "45 Alc Vol 90 Proof" });
+
+    expect(result.checks.find((check) => check.field === "Alcohol content")?.status).toBe("fail");
+  });
+
+  it("accepts equivalent alcohol notation with normalized units", () => {
+    const result = compareExtraction(application, { ...compliantExtraction, alcoholContent: "45% ABV, 90 proof" });
+
+    expect(result.checks.find((check) => check.field === "Alcohol content")?.status).toBe("pass");
+  });
+
+  it("accepts joined and converted net-content units", () => {
+    const joined = compareExtraction(application, { ...compliantExtraction, netContents: "750mL" });
+    const converted = compareExtraction(application, { ...compliantExtraction, netContents: "0.75 L" });
+
+    expect(joined.checks.find((check) => check.field === "Net contents")?.status).toBe("pass");
+    expect(converted.checks.find((check) => check.field === "Net contents")?.status).toBe("pass");
+  });
+
   it("requires exact warning text and heading treatment", () => {
     const result = compareExtraction(application, { ...compliantExtraction, warningHeadingAllCaps: false });
 
@@ -50,9 +70,27 @@ describe("compareExtraction", () => {
     expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("fail");
   });
 
+  it("accepts body casing differences when the warning heading treatment passes", () => {
+    const result = compareExtraction(application, { ...compliantExtraction, governmentWarning: GOVERNMENT_WARNING.toLocaleUpperCase("en-US") });
+
+    expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("pass");
+  });
+
   it("routes unreadable evidence to human review", () => {
     const result = compareExtraction(application, { ...compliantExtraction, brandName: null, imageQuality: "unreadable" });
 
+    expect(result.recommendation).toBe("manual-review");
+    expect(result.confidence).toBe("low");
+  });
+
+  it("routes unreadable conflicting partial evidence to human review", () => {
+    const result = compareExtraction(application, {
+      ...compliantExtraction,
+      alcoholContent: "40% Alc./Vol. (80 Proof)",
+      imageQuality: "unreadable",
+    });
+
+    expect(result.checks.find((check) => check.field === "Alcohol content")?.status).toBe("fail");
     expect(result.recommendation).toBe("manual-review");
     expect(result.confidence).toBe("low");
   });

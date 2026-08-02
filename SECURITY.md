@@ -4,7 +4,7 @@
 
 Protected assets are uploaded label artwork, application values, AWS workload identity, and the integrity of review evidence. Relevant threats include oversized or disguised uploads, cross-site submissions, XSS, prompt injection embedded in artwork, malformed model output, credential exposure, denial of service, and automation bias.
 
-Implemented controls include file size and magic-byte validation, same-origin enforcement, schema and length validation, request throttling, provider timeout, least-privilege Bedrock IAM permissions, no-store responses, no upload persistence, a nonce-based Content Security Policy, restrictive browser permissions, deterministic comparisons, visible source evidence, and required human review.
+Implemented controls include file size and magic-byte validation, same-origin enforcement, schema and length validation, request throttling, provider timeout, inference-profile-bound Bedrock IAM permissions, no-store responses, no upload persistence, a nonce-based Content Security Policy, restrictive browser permissions, deterministic comparisons, visible source evidence, and required human review.
 
 The detailed data-flow, STRIDE analysis, abuse cases, and accepted prototype risks are documented in the [threat model](docs/threat-model.md). AI-specific components, limitations, evaluation needs, and governance are documented in the [AI system card](docs/ai-system-card.md).
 

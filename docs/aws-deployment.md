@@ -23,7 +23,7 @@ export AWS_REGION=us-east-1
 
 The script uses the current Git commit as an immutable image tag. A dirty worktree receives a timestamped `dirty` suffix to prevent collisions; committed releases are recommended for traceability. Set `IMAGE_TAG` to select another unique release tag. Terraform prompts for approval twice on the first deployment: once for ECR, then once for the complete service.
 
-Real vision analysis uses Amazon Bedrock through the App Runner instance role. Terraform grants `bedrock:InvokeModel` only for the configured inference profile and underlying Amazon Nova Lite foundation model. No model API key or Secrets Manager secret is required. Override `bedrock_model_id` only with another validated multimodal Bedrock profile and update the scoped foundation-model ARN.
+Real vision analysis uses Amazon Bedrock through the App Runner instance role. Terraform grants `bedrock:InvokeModel` to the configured inference profile and grants its underlying Amazon Nova Lite foundation-model access only when `bedrock:InferenceProfileArn` equals that profile. No model API key or Secrets Manager secret is required. Override `bedrock_model_id` only with another validated multimodal Bedrock profile and update the scoped foundation-model ARN.
 
 For persistent team environments, configure a remote Terraform backend before the first shared deployment. Do not commit local state or populated `.tfvars` files. Copy `infra/terraform/terraform.tfvars.example` to a local `.tfvars` file for non-secret overrides.
 

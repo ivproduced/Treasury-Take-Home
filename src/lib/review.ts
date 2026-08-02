@@ -60,22 +60,54 @@ function normalizeText(value: string) {
 }
 
 function canonicalizeWarning(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, " ").trim();
+  return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
 }
 
-function fieldCheck(field: string, expected: string, observed: string | null): ReviewCheck {
+function fieldCheck(field: string, expected: string, observed: string | null, matches = observed ? normalizeText(expected) === normalizeText(observed) : false, passDetail = "Matches after case and punctuation normalization."): ReviewCheck {
   if (!observed) {
     return { field, expected, observed: "Not detected", status: "review", detail: "Confirm this field manually." };
   }
 
-  const matches = normalizeText(expected) === normalizeText(observed);
   return {
     field,
     expected,
     observed,
     status: matches ? "pass" : "fail",
-    detail: matches ? "Matches after case and punctuation normalization." : "Application and label values differ.",
+    detail: matches ? passDetail : "Application and label values differ or use invalid quantity notation.",
   };
+}
+
+function parseAlcoholContent(value: string) {
+  const normalized = value.normalize("NFKC").toLocaleLowerCase("en-US");
+  const percent = normalized.match(/(\d+(?:\.\d+)?)\s*%/);
+  const hasAlcoholUnit = /\babv\b/.test(normalized) || /\balc(?:ohol)?[\s./-]*(?:by[\s./-]*)?vol(?:ume)?\b/.test(normalized);
+  if (!percent || !hasAlcoholUnit) return null;
+
+  const proof = normalized.match(/(\d+(?:\.\d+)?)\s*proof\b/);
+  return { abv: Number(percent[1]), proof: proof ? Number(proof[1]) : null };
+}
+
+function alcoholContentMatches(expected: string, observed: string) {
+  const expectedValue = parseAlcoholContent(expected);
+  const observedValue = parseAlcoholContent(observed);
+  if (!expectedValue || !observedValue || expectedValue.abv !== observedValue.abv) return false;
+  return expectedValue.proof === null || expectedValue.proof === observedValue.proof;
+}
+
+function parseNetContents(value: string) {
+  const match = value.normalize("NFKC").trim().match(/^(\d+(?:\.\d+)?)\s*(ml|millilit(?:er|re)s?|cl|centilit(?:er|re)s?|l|lit(?:er|re)s?)\.?$/i);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  const unit = match[2].toLocaleLowerCase("en-US");
+  const multiplier = unit === "cl" || unit.startsWith("centilit") ? 10 : unit === "l" || unit.startsWith("lit") ? 1_000 : 1;
+  return amount * multiplier;
+}
+
+function netContentsMatch(expected: string, observed: string) {
+  const expectedMilliliters = parseNetContents(expected);
+  const observedMilliliters = parseNetContents(observed);
+  return expectedMilliliters !== null && observedMilliliters !== null && Math.abs(expectedMilliliters - observedMilliliters) < 0.001;
 }
 
 export function compareExtraction(application: ApplicationFields, extraction: Extraction): Omit<ReviewResult, "mode" | "durationMs"> {
@@ -92,8 +124,8 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
   const checks = [
     fieldCheck("Brand name", application.brandName, extraction.brandName),
     fieldCheck("Class / type", application.classType, extraction.classType),
-    fieldCheck("Alcohol content", application.alcoholContent, extraction.alcoholContent),
-    fieldCheck("Net contents", application.netContents, extraction.netContents),
+    fieldCheck("Alcohol content", application.alcoholContent, extraction.alcoholContent, extraction.alcoholContent ? alcoholContentMatches(application.alcoholContent, extraction.alcoholContent) : false, "Numeric ABV, percent symbol, units, and declared proof match."),
+    fieldCheck("Net contents", application.netContents, extraction.netContents, extraction.netContents ? netContentsMatch(application.netContents, extraction.netContents) : false, "Numeric volume matches after unit normalization."),
     {
       field: "Government warning",
       expected: "Exact statutory text; heading uppercase and bold",
@@ -110,7 +142,7 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
 
   return {
     checks,
-    recommendation: hasFailure ? "does-not-match" : needsReview ? "manual-review" : "appears-compliant",
+    recommendation: extraction.imageQuality === "unreadable" ? "manual-review" : hasFailure ? "does-not-match" : needsReview ? "manual-review" : "appears-compliant",
     confidence: extraction.imageQuality === "good" && !needsReview ? "high" : extraction.imageQuality === "unreadable" ? "low" : "medium",
     imageQuality: extraction.imageQuality,
     notes: extraction.notes,

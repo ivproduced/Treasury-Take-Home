@@ -13,7 +13,7 @@ This report records prototype verification performed during implementation. It i
 | Check | Command | Result |
 |---|---|---|
 | Strict TypeScript | `npm run lint` | Pass |
-| Unit tests | `npm test` | Pass: 11 tests across 2 files |
+| Unit tests | `npm test` | Pass: 16 tests across 2 files |
 | Production compilation | `npm run build` | Pass |
 | Multipart workflow smoke | `SMOKE_BASE_URL=http://localhost:3100 npm run smoke:production` | Pass: `200`, 5 checks, manual review |
 | Bedrock image smoke | Nova Lite through production route | Pass: `200`, AI mode, 5 checks, 873 ms server duration |
@@ -22,17 +22,18 @@ This report records prototype verification performed during implementation. It i
 
 Unit coverage verifies:
 
-1. Case and punctuation differences are tolerated for otherwise equal values.
-2. A conflicting alcohol-content value produces a mismatch.
-3. Incorrect government-warning heading treatment produces a mismatch.
-4. Malformed statutory warning punctuation produces a mismatch.
-5. Missing evidence in an unreadable image routes to manual review with low confidence.
-6. Demo simulation routes to manual review instead of appearing compliant.
-7. Shared application field limits accept boundary values and reject oversized values.
-8. A custom-domain origin reconstructed from deployment proxy headers is accepted.
-9. A foreign origin behind the deployment proxy is rejected.
-10. Lengthless multipart bodies over the request limit are rejected before parsing.
-11. Valid lengthless multipart requests remain supported and fail safe in demo mode.
+1. Case and punctuation differences are tolerated for brand and class/type values.
+2. Conflicting alcohol content and notation missing `%` produce mismatches.
+3. Equivalent ABV notation and net-content units compare successfully.
+4. Incorrect government-warning heading treatment and malformed punctuation produce mismatches.
+5. Warning body casing is tolerated when exact words, punctuation, and heading treatment match.
+6. Unreadable evidence routes to manual review with low confidence, including conflicting partial OCR.
+7. Demo simulation routes to manual review instead of appearing compliant.
+8. Shared application field limits accept boundary values and reject oversized values.
+9. A custom-domain origin reconstructed from deployment proxy headers is accepted.
+10. A foreign origin behind the deployment proxy is rejected.
+11. Lengthless multipart bodies over the request limit are rejected before parsing.
+12. Valid lengthless multipart requests remain supported and fail safe in demo mode.
 
 ## Runtime security checks
 
@@ -69,7 +70,7 @@ Manual screen-reader testing with VoiceOver/NVDA, 200-400% zoom, high-contrast/f
 
 ## Tests not yet performed
 
-- Real-provider extraction accuracy or latency
+- Representative real-provider extraction accuracy and latency
 - Representative beer, wine, spirits, and imported-label dataset evaluation
 - Glare, curvature, rotation, blur, low-light, and multilingual stress tests
 - Adversarial prompt-injection image suite

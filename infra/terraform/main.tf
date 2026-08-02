@@ -1,6 +1,10 @@
 data "aws_partition" "current" {}
 data "aws_caller_identity" "current" {}
 
+locals {
+  bedrock_inference_profile_arn = "arn:${data.aws_partition.current.partition}:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}"
+}
+
 resource "aws_ecr_repository" "app" {
   name                 = var.name
   image_tag_mutability = "IMMUTABLE"
@@ -73,12 +77,21 @@ resource "aws_iam_role" "apprunner_instance" {
 
 data "aws_iam_policy_document" "bedrock_inference" {
   statement {
-    sid     = "InvokeLabelExtractionModel"
-    actions = ["bedrock:InvokeModel"]
-    resources = [
-      "arn:${data.aws_partition.current.partition}:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
-      "arn:${data.aws_partition.current.partition}:bedrock:*::foundation-model/amazon.nova-lite-v1:0",
-    ]
+    sid       = "InvokeLabelExtractionProfile"
+    actions   = ["bedrock:InvokeModel"]
+    resources = [local.bedrock_inference_profile_arn]
+  }
+
+  statement {
+    sid       = "InvokeNovaThroughProfile"
+    actions   = ["bedrock:InvokeModel"]
+    resources = ["arn:${data.aws_partition.current.partition}:bedrock:*::foundation-model/amazon.nova-lite-v1:0"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "bedrock:InferenceProfileArn"
+      values   = [local.bedrock_inference_profile_arn]
+    }
   }
 }
 

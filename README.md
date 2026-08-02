@@ -83,7 +83,7 @@ The interface uses semantic landmarks and heading order, explicit input labels, 
 
 ## Assumptions and limitations
 
-- The statutory warning check preserves exact case and punctuation while canonicalizing Unicode and whitespace; it separately requires uppercase and bold heading signals. Font size and physical placement require human confirmation because image pixels do not establish printed dimensions reliably.
+- Brand and class/type comparisons tolerate case and punctuation; alcohol and net contents use numeric, symbol, and unit-aware parsers. The statutory warning preserves exact words and punctuation while case-folding the body and separately requiring an uppercase, bold heading. Font size and physical placement require human confirmation because image pixels do not establish printed dimensions reliably.
 - A single application record applies to every artwork in the local queue. This prototype does not claim support for the stakeholder's 200-300 distinct-record batch workflow.
 - Bottler/producer name and address and imported-product country of origin are outside the current four-field prototype schema. They require beverage-specific and conditional rule packs before operational use.
 - In-memory throttling is prototype protection only. Production requires gateway-level distributed rate limits, authentication, authorization, audit events, retention enforcement, and malware scanning.

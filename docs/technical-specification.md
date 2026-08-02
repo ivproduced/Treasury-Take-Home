@@ -11,9 +11,9 @@ Proofmark verifies whether visible label evidence corresponds to one application
 | FR-01 | Capture authoritative application values | Brand, class/type, alcohol content, and net contents fields |
 | FR-02 | Accept label artwork | JPEG, PNG, or WebP; up to 8 MiB each |
 | FR-03 | Queue artwork for one record | Up to 20 local queue items, processed sequentially |
-| FR-04 | Extract visible evidence | Optional vision model; explicit simulation when no key exists |
-| FR-05 | Compare fields | Case/punctuation-normalized exact comparison |
-| FR-06 | Check government warning | Exact case and punctuation with Unicode/whitespace canonicalization, plus uppercase and bold heading signals |
+| FR-04 | Extract visible evidence | Optional vision model; explicit simulation when no model is configured |
+| FR-05 | Compare fields | Tolerant text comparison plus numeric/symbol/unit-aware quantity comparison |
+| FR-06 | Check government warning | Exact words and punctuation with case-folded body, plus uppercase and bold heading signals |
 | FR-07 | Preserve judgment | Expected and observed evidence shown for agent review |
 | FR-08 | Handle uncertainty | Missing/unreadable evidence routes to manual review |
 | FR-09 | Report progress and errors | Per-file state, live completion message, API errors, and explicit upload-rejection reasons |
@@ -79,9 +79,9 @@ Error responses use `{ "error": "human-readable message" }` and an appropriate `
 
 ## 5. Comparison rules
 
-General field normalization applies Unicode NFKC, US English lowercase conversion, replacement of non-alphanumeric runs with one space, and trimming. This intentionally tolerates casing and punctuation differences such as `STONE'S THROW` versus `Stone's Throw`; it does not perform fuzzy semantic matching. The statutory warning uses a separate canonical comparison that preserves case and punctuation while normalizing Unicode, whitespace runs, and surrounding whitespace.
+Brand and class/type normalization applies Unicode NFKC, US English lowercase conversion, replacement of non-alphanumeric runs with one space, and trimming. This intentionally tolerates casing and punctuation differences such as `STONE'S THROW` versus `Stone's Throw`; it does not perform fuzzy semantic matching. Alcohol content requires a numeric ABV, percent symbol, recognized alcohol-volume unit, and matching proof when the application declares proof. Net contents requires a complete numeric-volume expression and compares normalized milliliters across `mL`, `cL`, and `L` notation.
 
-Any observed conflicting value produces `does-not-match`. Missing evidence or degraded image quality produces `manual-review` unless another field already conflicts. An `appears-compliant` result requires all fields to pass and image quality to be `good`.
+The statutory warning comparison preserves exact words and punctuation while case-folding the body; uppercase and bold treatment of the `GOVERNMENT WARNING` heading is validated separately. An unreadable image always produces `manual-review`, even when partial OCR conflicts. Otherwise, an observed conflicting value produces `does-not-match`, and missing or review-quality evidence produces `manual-review`. An `appears-compliant` result requires all fields to pass and image quality to be `good`.
 
 Demo simulation is always assigned `review` image quality, so it cannot produce `appears-compliant`.
 
@@ -99,8 +99,11 @@ Bedrock credentials come from the AWS SDK credential chain. App Runner uses its 
 - Strict TypeScript validation, unit tests, production build, and dependency audit pass.
 - A compliant extraction tolerates case/punctuation differences.
 - A conflicting ABV is displayed as a mismatch.
+- Alcohol notation without a percent symbol is displayed as a mismatch.
+- Equivalent net-content units compare by normalized numeric volume.
 - An incorrect warning heading is displayed as a mismatch.
-- Unreadable evidence routes to manual review.
+- Warning body casing does not affect an otherwise exact statement.
+- Unreadable evidence routes to manual review even when partial OCR conflicts.
 - Cross-origin API requests are rejected.
 - Security headers include a request-specific nonce CSP.
 - Keyboard users can operate all visible controls and status is not conveyed by color alone.
