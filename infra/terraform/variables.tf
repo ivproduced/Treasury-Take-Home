@@ -22,17 +22,10 @@ variable "image_tag" {
   default     = "latest"
 }
 
-variable "openai_api_key_secret_arn" {
-  description = "Optional ARN of an existing Secrets Manager secret containing the OpenAI API key."
+variable "bedrock_model_id" {
+  description = "Amazon Bedrock multimodal inference profile used by the server route."
   type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "openai_vision_model" {
-  description = "OpenAI vision model used by the server route."
-  type        = string
-  default     = "gpt-4.1-mini"
+  default     = "us.amazon.nova-lite-v1:0"
 }
 
 variable "cpu" {

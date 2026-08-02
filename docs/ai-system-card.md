@@ -11,14 +11,14 @@
 | Prohibited use | Autonomous approval/rejection, enforcement action, identity decisions, or use without evidence review |
 | Decision authority | Human compliance agent |
 | AI mode | Optional server-side multimodal inference |
-| Fallback | Explicit deterministic demo simulation when no API key is configured |
+| Fallback | Explicit deterministic demo simulation when no Bedrock model is configured |
 
 ## AI bill of materials
 
 | Component | Identifier | Function | Location / owner | Data received | Notes |
 |---|---|---|---|---|---|
-| Vision model | `OPENAI_VISION_MODEL`, default `gpt-4.1-mini` | Extract label text and visual heading signals | External provider | Complete uploaded label image and extraction instruction | Configurable; exact deployed version is provider-controlled unless pinned through an approved deployment |
-| Inference API | OpenAI Chat Completions endpoint | Transport prompt/image and return JSON | External provider | Base64 image, system instruction, user instruction | Prototype adapter; production recommendation is an approved Azure OpenAI private endpoint |
+| Vision model | `BEDROCK_MODEL_ID`, default `us.amazon.nova-lite-v1:0` | Extract label text and visual heading signals | Amazon Bedrock | Complete uploaded label image and extraction instruction | US cross-region inference profile configured by Terraform |
+| Inference API | Amazon Bedrock Converse API | Transport prompt/image and return a forced tool input | AWS | Image bytes, system instruction, user instruction | App Runner authenticates with its IAM instance role |
 | System instruction | Inline in `src/app/api/analyze/route.ts` | Constrain task, resist image prompt injection, define output keys | Proofmark source | No separate user data | Must be versioned and evaluated in production |
 | Output validator | Zod `extractionSchema` | Enforce types, enums, lengths, and nullable fields | Proofmark server | Model JSON | Rejects malformed output before business logic |
 | Comparison engine | `compareExtraction` | Compare extracted evidence with application record | Proofmark server | Validated extraction and application values | Deterministic, not an ML component |
@@ -34,20 +34,20 @@ Inputs are one JPEG/PNG/WebP label and four application fields. AI output is lim
 
 - Treat all image text as untrusted data, never as instructions.
 - Tell the model not to infer missing evidence.
-- Use temperature zero and request JSON output.
+- Use temperature zero and force the schema-described extraction tool.
 - Parse and validate the complete response before use.
 - Keep field comparison outside the model.
 - Show expected and observed values to the agent.
 - Route missing/unreadable evidence to manual review.
 - Apply a 4.5-second timeout and fail closed on provider/schema errors.
-- Keep credentials and model traffic on the server.
+- Use IAM workload identity and keep model traffic on the server.
 
 ## Known limitations
 
 - Visual extraction can fail with glare, curvature, occlusion, unusual typography, low resolution, or adversarial text.
 - `warningHeadingBold` and image quality are model judgments, not physical-print measurements.
 - Normalized exact matching does not recognize all semantically equivalent values and may require agent judgment.
-- Provider behavior can change unless model and service versions are pinned.
+- Provider behavior can change; record the configured inference profile and evaluated model revision with each release.
 - Demo mode is a workflow fixture and is not evidence of extraction accuracy.
 - The current prototype has no representative labeled evaluation dataset and therefore makes no accuracy, fairness, or error-rate claim.
 
@@ -61,4 +61,4 @@ Record the model deployment/version, prompt hash, schema version, rule version, 
 
 ## Data governance
 
-The prototype stores no files, but a configured external provider receives the image. Operational use requires an approved privacy impact assessment, data-use agreement, geographic processing decision, retention configuration, incident process, and confirmation that submitted data is not used for provider training.
+The prototype stores no files, but Amazon Bedrock receives the image for inference and a US cross-region profile may route it among supported US Regions. Operational use requires an approved privacy impact assessment, geographic processing decision, retention configuration, incident process, and confirmation that the selected Bedrock model and regions meet agency policy.

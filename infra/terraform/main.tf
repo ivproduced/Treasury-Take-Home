@@ -1,4 +1,5 @@
 data "aws_partition" "current" {}
+data "aws_caller_identity" "current" {}
 
 resource "aws_ecr_repository" "app" {
   name                 = var.name
@@ -70,22 +71,21 @@ resource "aws_iam_role" "apprunner_instance" {
   assume_role_policy = data.aws_iam_policy_document.apprunner_instance_assume_role.json
 }
 
-data "aws_iam_policy_document" "openai_secret" {
-  count = var.openai_api_key_secret_arn == null ? 0 : 1
-
+data "aws_iam_policy_document" "bedrock_inference" {
   statement {
-    sid       = "ReadOpenAIKey"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.openai_api_key_secret_arn]
+    sid     = "InvokeLabelExtractionModel"
+    actions = ["bedrock:InvokeModel"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
+      "arn:${data.aws_partition.current.partition}:bedrock:*::foundation-model/amazon.nova-lite-v1:0",
+    ]
   }
 }
 
-resource "aws_iam_role_policy" "openai_secret" {
-  count = var.openai_api_key_secret_arn == null ? 0 : 1
-
-  name   = "read-openai-api-key"
+resource "aws_iam_role_policy" "bedrock_inference" {
+  name   = "invoke-bedrock-label-model"
   role   = aws_iam_role.apprunner_instance.id
-  policy = data.aws_iam_policy_document.openai_secret[0].json
+  policy = data.aws_iam_policy_document.bedrock_inference.json
 }
 
 resource "aws_apprunner_auto_scaling_configuration_version" "app" {
@@ -114,10 +114,8 @@ resource "aws_apprunner_service" "app" {
       image_configuration {
         port = "8080"
         runtime_environment_variables = {
-          OPENAI_VISION_MODEL = var.openai_vision_model
-        }
-        runtime_environment_secrets = var.openai_api_key_secret_arn == null ? {} : {
-          OPENAI_API_KEY = var.openai_api_key_secret_arn
+          AWS_REGION       = var.aws_region
+          BEDROCK_MODEL_ID = var.bedrock_model_id
         }
       }
     }
@@ -137,7 +135,10 @@ resource "aws_apprunner_service" "app" {
     unhealthy_threshold = 5
   }
 
-  depends_on = [aws_iam_role_policy_attachment.apprunner_ecr]
+  depends_on = [
+    aws_iam_role_policy.bedrock_inference,
+    aws_iam_role_policy_attachment.apprunner_ecr,
+  ]
 }
 
 resource "aws_apprunner_custom_domain_association" "app" {

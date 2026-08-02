@@ -28,7 +28,7 @@ flowchart LR
 |---|---|---|
 | Browser workspace | Collect fields and files, maintain a local queue, display evidence | Untrusted client |
 | `POST /api/analyze` | Enforce request limits, validate inputs, call extraction adapter | Server trust boundary |
-| Vision provider adapter | Extract visible label fields into JSON | Untrusted probabilistic output |
+| Bedrock Runtime adapter | Extract visible label fields into schema-constrained tool input | Untrusted probabilistic output |
 | Zod schemas | Reject malformed application and model output | Deterministic control |
 | Comparison engine | Normalize fields, check statutory warning, assign recommendation | Authoritative application logic |
 | Compliance agent | Inspect evidence and make final determination | Human decision authority |
@@ -40,16 +40,16 @@ sequenceDiagram
     actor Agent
     participant UI as Browser UI
     participant API as Analysis API
-    participant AI as Vision provider
+    participant AI as Amazon Bedrock
     participant Rules as Comparison engine
 
     Agent->>UI: Enter application values and select images
     loop Sequentially for each label
         UI->>API: Multipart image and application JSON
         API->>API: Validate origin, size, type, signature, and schema
-        alt Provider configured
+        alt Bedrock model configured
             API->>AI: Image plus extraction-only instruction
-            AI-->>API: JSON evidence
+            AI-->>API: Schema-described tool input
             API->>API: Validate AI output schema
         else Demo mode
             API->>API: Generate explicit simulation fixture
@@ -68,7 +68,7 @@ sequenceDiagram
 2. Label text is untrusted content. The model is told not to follow instructions found in the image.
 3. Model output is untrusted. It must pass a closed Zod schema before comparison.
 4. Uploaded bytes exist in browser memory and server request memory. The application has no database or upload store.
-5. A configured provider receives the image. Production use therefore requires an approved endpoint, retention terms, encryption, and network controls.
+5. Amazon Bedrock receives the image. Production use therefore requires approved model/region selection, retention review, encryption, and network controls.
 
 ## Deployment view
 

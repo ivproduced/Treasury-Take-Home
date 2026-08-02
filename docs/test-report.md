@@ -16,6 +16,7 @@ This report records prototype verification performed during implementation. It i
 | Unit tests | `npm test` | Pass: 11 tests across 2 files |
 | Production compilation | `npm run build` | Pass |
 | Multipart workflow smoke | `SMOKE_BASE_URL=http://localhost:3100 npm run smoke:production` | Pass: `200`, 5 checks, manual review |
+| Bedrock image smoke | Nova Lite through production route | Pass: `200`, AI mode, 5 checks, 873 ms server duration |
 | Dependency audit | `npm audit` | Pass: 0 known vulnerabilities at test time |
 | Runtime SBOM | `npm run sbom` | Pass: CycloneDX 1.6, 24 runtime components |
 
@@ -46,6 +47,8 @@ Unit coverage verifies:
 ## Workflow checks
 
 A valid synthetic PNG was uploaded and processed through the browser and multipart smoke script in demo mode. It produced `manual review`, exposed `image quality: review`, showed the simulation note, and returned a five-row comparison table. An unsupported text file stayed out of the queue and displayed its filename and rejection reason.
+
+After the Bedrock migration, the 1x1 synthetic PNG completed through Amazon Nova Lite in `873 ms` and returned five schema-validated checks with `unreadable` image quality. This confirms the live provider path and conservative degraded-image handling, but it is not representative latency or extraction-quality evidence.
 
 Changing an application field after analysis cleared the stale result and caused the label to be analyzed again. Browser field limits matched the server schema at 120, 160, 40, and 40 characters.
 

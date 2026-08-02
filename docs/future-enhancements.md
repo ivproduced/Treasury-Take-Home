@@ -6,7 +6,7 @@ Future work should first reduce the risk of incorrect compliant recommendations,
 
 ## Near term: production foundations
 
-1. Replace the public provider adapter with an approved Azure OpenAI private deployment and pin a model version.
+1. Add a Bedrock VPC endpoint, model invocation logging policy, and evaluated model-version release gate.
 2. Add agency SSO, role-based authorization, session expiry, and gateway rate/body limits.
 3. Add malware scanning, image-decompression limits, encrypted temporary storage, and retention deletion jobs.
 4. Build a rights-cleared evaluation set and establish compliance-owner acceptance thresholds.

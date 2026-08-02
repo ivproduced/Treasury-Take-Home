@@ -15,17 +15,16 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without credentials, the complete workflow runs in persistently identified **demo simulation** mode. Demo extraction does not inspect pixels and can return only `manual-review` or `does-not-match`, never `appears-compliant`. Filenames containing `review`, `mismatch`, or `fail` produce a sample ABV discrepancy.
+Open `http://localhost:3000`. Without `BEDROCK_MODEL_ID`, the complete workflow runs in persistently identified **demo simulation** mode. Demo extraction does not inspect pixels and can return only `manual-review` or `does-not-match`, never `appears-compliant`. Filenames containing `review`, `mismatch`, or `fail` produce a sample ABV discrepancy.
 
-To use real vision analysis:
+To use real vision analysis with an authenticated AWS profile:
 
 ```bash
 cp .env.example .env.local
-# Set OPENAI_API_KEY in .env.local
 npm run dev
 ```
 
-The key is read only by the server route and is never included in browser code. For an Azure/FedRAMP deployment, replace the provider adapter in `src/app/api/analyze/route.ts` with an approved Azure OpenAI private endpoint; the comparison and UI layers remain unchanged.
+The server uses the AWS SDK credential chain to invoke Amazon Bedrock; no model API key enters the application. The deployed App Runner service uses its IAM instance role. The default model is the US cross-region Amazon Nova Lite inference profile.
 
 ## Quality checks
 
@@ -74,7 +73,7 @@ Sequential queue processing avoids overwhelming a model endpoint. It is not the 
 - **Human oversight:** recommendations are advisory, evidence is visible, and unreadable or incomplete images route to manual review.
 - **Data minimization:** uploads are held in memory for one request, sent only to the configured provider, and never persisted or logged.
 - **Availability controls:** 4.5-second provider timeout, 8 MB file cap, request cap, sequential processing, and basic rate limiting.
-- **Provider isolation:** credentials remain server-side; browser CSP allows network requests only to the application origin.
+- **Provider isolation:** Bedrock access uses the App Runner IAM instance role; browser CSP allows network requests only to the application origin.
 
 See [SECURITY.md](SECURITY.md) for the threat model and production requirements.
 
@@ -93,6 +92,6 @@ The interface uses semantic landmarks and heading order, explicit input labels, 
 
 ## Deploy
 
-The repository includes a production container and an [AWS App Runner deployment guide](docs/aws-deployment.md). App Runner preserves the server-side analysis route, terminates TLS, and runs the application from a private ECR image. Configure `OPENAI_API_KEY` as an App Runner runtime secret; do not expose it through a `NEXT_PUBLIC_` variable.
+The repository includes a production container and an [AWS App Runner deployment guide](docs/aws-deployment.md). App Runner preserves the server-side analysis route, terminates TLS, runs the application from a private ECR image, and invokes Bedrock through a least-privilege IAM instance role.
 
 Production deployment must also enforce authentication and configure provider egress allowlisting before accepting agency data.

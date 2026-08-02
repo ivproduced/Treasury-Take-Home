@@ -23,29 +23,7 @@ export AWS_REGION=us-east-1
 
 The script uses the current Git commit as an immutable image tag. A dirty worktree receives a timestamped `dirty` suffix to prevent collisions; committed releases are recommended for traceability. Set `IMAGE_TAG` to select another unique release tag. Terraform prompts for approval twice on the first deployment: once for ECR, then once for the complete service.
 
-To enable real vision analysis, create the API key secret outside Terraform so its value never enters Terraform state:
-
-```bash
-mkdir -p .secrets
-# Enter only the API key in .secrets/openai-api-key, without a trailing newline.
-aws secretsmanager create-secret \
-  --region "$AWS_REGION" \
-  --name proofmark/openai \
-  --secret-string file://.secrets/openai-api-key
-```
-
-Then pass only its ARN to Terraform:
-
-```bash
-export TF_VAR_openai_api_key_secret_arn="$(aws secretsmanager describe-secret \
-  --region "$AWS_REGION" \
-  --secret-id proofmark/openai \
-  --query ARN \
-  --output text)"
-./scripts/deploy-aws.sh
-```
-
-The `.secrets` directory is ignored by Git. Delete the local key file securely after creating the secret. Without a secret ARN, Proofmark deploys in demo simulation mode.
+Real vision analysis uses Amazon Bedrock through the App Runner instance role. Terraform grants `bedrock:InvokeModel` only for the configured inference profile and underlying Amazon Nova Lite foundation model. No model API key or Secrets Manager secret is required. Override `bedrock_model_id` only with another validated multimodal Bedrock profile and update the scoped foundation-model ARN.
 
 For persistent team environments, configure a remote Terraform backend before the first shared deployment. Do not commit local state or populated `.tfvars` files. Copy `infra/terraform/terraform.tfvars.example` to a local `.tfvars` file for non-secret overrides.
 
@@ -82,6 +60,6 @@ Run `./scripts/deploy-aws.sh` from a new Git commit, or set a unique `IMAGE_TAG`
 
 ## Production controls
 
-Before processing agency data, add authentication and authorization in front of the application, use an AWS WAF rate-based rule, restrict outbound access to the approved AI provider, enable App Runner logs and alarms, and define retention and incident-response procedures. The in-memory request limiter is per container and is not a distributed production control.
+Before processing agency data, add authentication and authorization in front of the application, use an AWS WAF rate-based rule, restrict Bedrock model access and regions according to agency policy, enable App Runner logs and alarms, and define retention and incident-response procedures. The in-memory request limiter is per container and is not a distributed production control.
 
 The current request path buffers one image in memory and accepts up to 8 MB. Keep at least 2 GB of service memory and test the limit through any custom proxy or WAF configuration. A higher-volume deployment should use private S3 uploads, malware scanning, a durable queue, and bounded workers rather than increasing the synchronous request limit.

@@ -24,7 +24,7 @@ Proofmark verifies whether visible label evidence corresponds to one application
 |---|---|---|
 | QR-01 | Responsiveness | Provider timeout at 4.5 seconds; demo mode typically completes locally in milliseconds |
 | QR-02 | Accessibility | WCAG 2.2 AA target; semantics, keyboard operation, reflow, focus, live status, contrast, reduced motion |
-| QR-03 | Confidentiality | Server-only API key, no application persistence, no-store responses, restrictive CSP |
+| QR-03 | Confidentiality | IAM workload identity, no application persistence, no-store responses, restrictive CSP |
 | QR-04 | Integrity | MIME and magic-byte checks, Zod schemas, deterministic comparison |
 | QR-05 | Availability | Bounded 8 MiB multipart parsing, per-client and process-wide in-memory throttles, sequential client processing |
 | QR-06 | Explainability | Field-level expected/observed values, detail, status, source mode, and confidence |
@@ -89,10 +89,10 @@ Demo simulation is always assigned `review` image quality, so it cannot produce 
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | No | Enables real vision extraction; absence activates demo mode |
-| `OPENAI_VISION_MODEL` | No | Model identifier; defaults to `gpt-4.1-mini` |
+| `AWS_REGION` | Yes for AI mode | Bedrock Runtime region; App Runner sets it from Terraform |
+| `BEDROCK_MODEL_ID` | No | Bedrock multimodal inference profile; absence activates demo mode |
 
-Secrets must be injected by the host and must not use a `NEXT_PUBLIC_` prefix.
+Bedrock credentials come from the AWS SDK credential chain. App Runner uses its IAM instance role; no long-lived model credential is configured.
 
 ## 7. Acceptance criteria
 

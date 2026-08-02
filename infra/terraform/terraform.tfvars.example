@@ -2,8 +2,8 @@ aws_region = "us-east-1"
 name       = "proofmark"
 custom_domain_name = "proofmark.ivproduced.com"
 
-# Reference an existing secret. Do not put the API key itself in this file.
-# openai_api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:proofmark/openai-AbCdEf"
+# Override only with another validated multimodal Bedrock inference profile.
+# bedrock_model_id = "us.amazon.nova-lite-v1:0"
 
 tags = {
   Application = "Proofmark"
