@@ -33,6 +33,7 @@ npm run lint       # strict TypeScript validation
 npm test           # deterministic comparison tests
 npm run build      # production compilation
 npm run smoke:production # live multipart upload -> comparison result
+npm run smoke:readable-label # two live readable-label regression runs
 npm audit          # production and development dependencies
 npm run sbom       # regenerate the CycloneDX runtime inventory
 ```
@@ -59,7 +60,7 @@ The SBOM is generated from `package-lock.json` and should be regenerated for eve
 
 1. The agent enters one authoritative application record and adds up to 20 JPEG, PNG, or WebP artworks for that record.
 2. The server validates request size, MIME type, file signature, field lengths, and origin.
-3. Vision AI extracts visible evidence into a strict schema. It does not make the compliance decision.
+3. Vision AI transcribes visible evidence into a strict schema with class/type and warning completeness signals. It does not make the compliance decision.
 4. Deterministic code performs normalized field comparisons and the exact warning check.
 5. The UI presents expected and observed evidence, confidence, and a recommendation for human review.
 

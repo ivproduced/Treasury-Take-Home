@@ -19,8 +19,8 @@
 |---|---|---|---|---|---|
 | Vision model | `BEDROCK_MODEL_ID`, default `us.amazon.nova-lite-v1:0` | Extract label text and visual heading signals | Amazon Bedrock | Complete uploaded label image and extraction instruction | US cross-region inference profile configured by Terraform |
 | Inference API | Amazon Bedrock Converse API | Transport prompt/image and return a forced tool input | AWS | Image bytes, system instruction, user instruction | App Runner authenticates with its IAM instance role |
-| System instruction | Inline in `src/app/api/analyze/route.ts` | Constrain task, resist image prompt injection, define output keys | Proofmark source | No separate user data | Must be versioned and evaluated in production |
-| Output validator | Zod `extractionSchema` | Enforce types, enums, lengths, and nullable fields | Proofmark server | Model JSON | Rejects malformed output before business logic |
+| System instruction | Inline in `src/app/api/analyze/route.ts` | Require literal, complete transcription; resist image prompt injection; define output keys | Proofmark source | No separate user data | Must be versioned and evaluated in production |
+| Output validator | Zod `extractionSchema` | Enforce types, completeness flags, enums, lengths, and nullable fields | Proofmark server | Model tool input | Rejects malformed output before business logic |
 | Comparison engine | `compareExtraction` | Compare extracted evidence with application record | Proofmark server | Validated extraction and application values | Deterministic, not an ML component |
 | Demo simulator | `createDemoExtraction` | Support credential-free workflow demonstration | Proofmark server | Application fields and filename | Does not inspect image pixels; always labeled `demo` and routed to manual review or mismatch |
 
@@ -28,14 +28,16 @@ No embeddings, vector database, fine-tuned weights, autonomous agents, retrieval
 
 ## Inputs and outputs
 
-Inputs are one JPEG/PNG/WebP label and four application fields. AI output is limited to five nullable evidence fields, two warning-heading signals, an image-quality enum, and up to four short notes. The model does not directly assign pass/fail status or call other systems.
+Inputs are one JPEG/PNG/WebP label and four application fields. AI output is limited to five nullable evidence fields, class/type and warning completeness flags, two warning-heading signals, an image-quality enum, and up to four short notes. The model does not directly assign pass/fail status or call other systems.
 
 ## Safety and security controls
 
 - Treat all image text as untrusted data, never as instructions.
 - Tell the model not to infer missing evidence.
+- Require verbatim class/type and warning transcription, including warning heading, colon, numbered clauses, and punctuation.
 - Use temperature zero and force the schema-described extraction tool.
 - Parse and validate the complete response before use.
+- Route declared or structurally detected transcription truncation to manual review.
 - Keep field comparison outside the model.
 - Show expected and observed values to the agent.
 - Route missing/unreadable evidence to manual review.

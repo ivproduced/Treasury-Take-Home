@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "smoke:production": "node scripts/smoke-production.mjs",
+    "smoke:readable-label": "node scripts/smoke-readable-label.mjs",
     "sbom": "npm exec --yes --package=@cyclonedx/cyclonedx-npm@4.0.1 -- cyclonedx-npm --output-file sbom.cdx.json --output-format JSON --spec-version 1.6 --omit dev"
   },
   "dependencies": {

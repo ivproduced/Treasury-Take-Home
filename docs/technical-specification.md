@@ -11,7 +11,7 @@ Proofmark verifies whether visible label evidence corresponds to one application
 | FR-01 | Capture authoritative application values | Brand, class/type, alcohol content, and net contents fields |
 | FR-02 | Accept label artwork | JPEG, PNG, or WebP; up to 8 MiB each |
 | FR-03 | Queue artwork for one record | Up to 20 local queue items, processed sequentially |
-| FR-04 | Extract visible evidence | Optional vision model; explicit simulation when no model is configured |
+| FR-04 | Extract visible evidence | Optional vision model with verbatim transcription and completeness flags; explicit simulation when no model is configured |
 | FR-05 | Compare fields | Tolerant text comparison plus numeric/symbol/unit-aware quantity comparison |
 | FR-06 | Check government warning | Exact words and punctuation with case-folded body, plus uppercase and bold heading signals |
 | FR-07 | Preserve judgment | Expected and observed evidence shown for agent review |
@@ -83,6 +83,8 @@ Brand and class/type normalization applies Unicode NFKC, US English lowercase co
 
 The statutory warning comparison preserves exact words and punctuation while case-folding the body; uppercase and bold treatment of the `GOVERNMENT WARNING` heading is validated separately. An unreadable image always produces `manual-review`, even when partial OCR conflicts. Otherwise, an observed conflicting value produces `does-not-match`, and missing or review-quality evidence produces `manual-review`. An `appears-compliant` result requires all fields to pass and image quality to be `good`.
 
+Class/type and government-warning transcriptions carry explicit completeness flags. A declared-incomplete transcription routes that check to review. Deterministic backstops also treat a strict class/type token subset or a warning missing its heading or either numbered clause as incomplete, even if the model overclaims completeness.
+
 Demo simulation is always assigned `review` image quality, so it cannot produce `appears-compliant`.
 
 ## 6. Configuration
@@ -103,6 +105,7 @@ Bedrock credentials come from the AWS SDK credential chain. App Runner uses its 
 - Equivalent net-content units compare by normalized numeric volume.
 - An incorrect warning heading is displayed as a mismatch.
 - Warning body casing does not affect an otherwise exact statement.
+- Incomplete or structurally truncated class/type and warning transcriptions route to manual review.
 - Unreadable evidence routes to manual review even when partial OCR conflicts.
 - Cross-origin API requests are rejected.
 - Security headers include a request-specific nonce CSP.

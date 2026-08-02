@@ -20,9 +20,11 @@ export const applicationSchema = z.object({
 export const extractionSchema = z.object({
   brandName: z.string().max(120).nullable(),
   classType: z.string().max(160).nullable(),
+  classTypeComplete: z.boolean(),
   alcoholContent: z.string().max(40).nullable(),
   netContents: z.string().max(40).nullable(),
   governmentWarning: z.string().max(700).nullable(),
+  governmentWarningComplete: z.boolean(),
   warningHeadingAllCaps: z.boolean(),
   warningHeadingBold: z.boolean().nullable(),
   imageQuality: z.enum(["good", "review", "unreadable"]),
@@ -63,9 +65,12 @@ function canonicalizeWarning(value: string) {
   return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
 }
 
-function fieldCheck(field: string, expected: string, observed: string | null, matches = observed ? normalizeText(expected) === normalizeText(observed) : false, passDetail = "Matches after case and punctuation normalization."): ReviewCheck {
+function fieldCheck(field: string, expected: string, observed: string | null, matches = observed ? normalizeText(expected) === normalizeText(observed) : false, passDetail = "Matches after case and punctuation normalization.", complete = true): ReviewCheck {
   if (!observed) {
     return { field, expected, observed: "Not detected", status: "review", detail: "Confirm this field manually." };
+  }
+  if (!complete) {
+    return { field, expected, observed, status: "review", detail: "The transcription may be incomplete; verify the full visible wording manually." };
   }
 
   return {
@@ -110,12 +115,29 @@ function netContentsMatch(expected: string, observed: string) {
   return expectedMilliliters !== null && observedMilliliters !== null && Math.abs(expectedMilliliters - observedMilliliters) < 0.001;
 }
 
+function isLikelyPartialClassType(expected: string, observed: string | null) {
+  if (!observed) return false;
+  const expectedTokens = normalizeText(expected).split(" ");
+  const observedTokens = normalizeText(observed).split(" ");
+  return observedTokens.length < expectedTokens.length && observedTokens.every((token) => expectedTokens.includes(token));
+}
+
+function hasCompleteWarningStructure(value: string | null) {
+  if (!value) return false;
+  const normalized = value.normalize("NFKC");
+  return /^\s*government warning\b/i.test(normalized) && /\(1\)/.test(normalized) && /\(2\)/.test(normalized);
+}
+
 export function compareExtraction(application: ApplicationFields, extraction: Extraction): Omit<ReviewResult, "mode" | "durationMs"> {
+  const classTypeComplete = extraction.classTypeComplete && !isLikelyPartialClassType(application.classType, extraction.classType);
+  const warningComplete = extraction.governmentWarningComplete && hasCompleteWarningStructure(extraction.governmentWarning);
   const warningTextMatches = extraction.governmentWarning
     ? canonicalizeWarning(extraction.governmentWarning) === canonicalizeWarning(GOVERNMENT_WARNING)
     : false;
   const warningPasses = warningTextMatches && extraction.warningHeadingAllCaps && extraction.warningHeadingBold === true;
-  const warningStatus: CheckStatus = warningPasses
+  const warningStatus: CheckStatus = !warningComplete
+    ? "review"
+    : warningPasses
     ? "pass"
     : extraction.governmentWarning && extraction.warningHeadingBold !== null
       ? "fail"
@@ -123,7 +145,7 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
 
   const checks = [
     fieldCheck("Brand name", application.brandName, extraction.brandName),
-    fieldCheck("Class / type", application.classType, extraction.classType),
+    fieldCheck("Class / type", application.classType, extraction.classType, extraction.classType ? normalizeText(application.classType) === normalizeText(extraction.classType) : false, "Matches after case and punctuation normalization.", classTypeComplete),
     fieldCheck("Alcohol content", application.alcoholContent, extraction.alcoholContent, extraction.alcoholContent ? alcoholContentMatches(application.alcoholContent, extraction.alcoholContent) : false, "Numeric ABV, percent symbol, units, and declared proof match."),
     fieldCheck("Net contents", application.netContents, extraction.netContents, extraction.netContents ? netContentsMatch(application.netContents, extraction.netContents) : false, "Numeric volume matches after unit normalization."),
     {
@@ -131,7 +153,9 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
       expected: "Exact statutory text; heading uppercase and bold",
       observed: extraction.governmentWarning ?? "Not detected",
       status: warningStatus,
-      detail: warningPasses
+      detail: !warningComplete
+        ? "The warning transcription is incomplete; verify the heading, colon, numbered clauses, words, and punctuation manually."
+        : warningPasses
         ? "Text and heading treatment appear compliant."
         : "An agent must verify exact text, uppercase heading, bold weight, and legibility.",
     },
@@ -153,8 +177,10 @@ export function createDemoExtraction(application: ApplicationFields, fileName: s
   const shouldFlag = /review|mismatch|fail/i.test(fileName);
   return {
     ...application,
+    classTypeComplete: true,
     alcoholContent: shouldFlag ? "40% Alc./Vol. (80 Proof)" : application.alcoholContent,
     governmentWarning: GOVERNMENT_WARNING,
+    governmentWarningComplete: true,
     warningHeadingAllCaps: true,
     warningHeadingBold: true,
     imageQuality: "review",

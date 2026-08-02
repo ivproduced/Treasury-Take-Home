@@ -11,9 +11,11 @@ const application: ApplicationFields = {
 const compliantExtraction: Extraction = {
   brandName: "STONE'S THROW",
   classType: "Kentucky Straight Bourbon Whiskey",
+  classTypeComplete: true,
   alcoholContent: "45% ALC/VOL - 90 PROOF",
   netContents: "750 ML",
   governmentWarning: GOVERNMENT_WARNING,
+  governmentWarningComplete: true,
   warningHeadingAllCaps: true,
   warningHeadingBold: true,
   imageQuality: "good",
@@ -33,6 +35,46 @@ describe("compareExtraction", () => {
 
     expect(result.recommendation).toBe("does-not-match");
     expect(result.checks.find((check) => check.field === "Alcohol content")?.status).toBe("fail");
+  });
+
+  it("abstains when readable class and warning transcriptions are incomplete", () => {
+    const result = compareExtraction(application, {
+      ...compliantExtraction,
+      classType: "Whiskey",
+      classTypeComplete: false,
+      governmentWarning: "According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.",
+      governmentWarningComplete: false,
+    });
+
+    expect(result.checks.find((check) => check.field === "Class / type")?.status).toBe("review");
+    expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("review");
+    expect(result.recommendation).toBe("manual-review");
+    expect(result.confidence).toBe("medium");
+  });
+
+  it("detects structural truncation when completeness is overclaimed", () => {
+    const result = compareExtraction(application, {
+      ...compliantExtraction,
+      classType: "Whiskey",
+      classTypeComplete: true,
+      governmentWarning: "According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects.",
+      governmentWarningComplete: true,
+    });
+
+    expect(result.checks.find((check) => check.field === "Class / type")?.status).toBe("review");
+    expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("review");
+    expect(result.recommendation).toBe("manual-review");
+  });
+
+  it("keeps complete conflicting class evidence as a mismatch", () => {
+    const result = compareExtraction(application, {
+      ...compliantExtraction,
+      classType: "Tennessee Whiskey",
+      classTypeComplete: true,
+    });
+
+    expect(result.checks.find((check) => check.field === "Class / type")?.status).toBe("fail");
+    expect(result.recommendation).toBe("does-not-match");
   });
 
   it("rejects alcohol content that omits the required percent symbol", () => {
