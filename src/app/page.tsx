@@ -3,5 +3,5 @@ import { connection } from "next/server";
 
 export default async function Home() {
   await connection();
-  return <ReviewWorkspace />;
+  return <ReviewWorkspace demoMode={!process.env.OPENAI_API_KEY} />;
 }

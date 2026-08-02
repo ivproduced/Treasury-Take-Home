@@ -45,6 +45,7 @@ export type ReviewResult = {
   checks: ReviewCheck[];
   recommendation: "appears-compliant" | "manual-review" | "does-not-match";
   confidence: "high" | "medium" | "low";
+  imageQuality: Extraction["imageQuality"];
   notes: string[];
   mode: "ai" | "demo";
   durationMs: number;
@@ -56,6 +57,10 @@ function normalizeText(value: string) {
     .toLocaleLowerCase("en-US")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function canonicalizeWarning(value: string) {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
 function fieldCheck(field: string, expected: string, observed: string | null): ReviewCheck {
@@ -75,7 +80,7 @@ function fieldCheck(field: string, expected: string, observed: string | null): R
 
 export function compareExtraction(application: ApplicationFields, extraction: Extraction): Omit<ReviewResult, "mode" | "durationMs"> {
   const warningTextMatches = extraction.governmentWarning
-    ? normalizeText(extraction.governmentWarning) === normalizeText(GOVERNMENT_WARNING)
+    ? canonicalizeWarning(extraction.governmentWarning) === canonicalizeWarning(GOVERNMENT_WARNING)
     : false;
   const warningPasses = warningTextMatches && extraction.warningHeadingAllCaps && extraction.warningHeadingBold === true;
   const warningStatus: CheckStatus = warningPasses
@@ -91,7 +96,7 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
     fieldCheck("Net contents", application.netContents, extraction.netContents),
     {
       field: "Government warning",
-      expected: "Normalized statutory text; heading uppercase and bold",
+      expected: "Exact statutory text; heading uppercase and bold",
       observed: extraction.governmentWarning ?? "Not detected",
       status: warningStatus,
       detail: warningPasses
@@ -107,6 +112,7 @@ export function compareExtraction(application: ApplicationFields, extraction: Ex
     checks,
     recommendation: hasFailure ? "does-not-match" : needsReview ? "manual-review" : "appears-compliant",
     confidence: extraction.imageQuality === "good" && !needsReview ? "high" : extraction.imageQuality === "unreadable" ? "low" : "medium",
+    imageQuality: extraction.imageQuality,
     notes: extraction.notes,
   };
 }
@@ -119,7 +125,7 @@ export function createDemoExtraction(application: ApplicationFields, fileName: s
     governmentWarning: GOVERNMENT_WARNING,
     warningHeadingAllCaps: true,
     warningHeadingBold: true,
-    imageQuality: "good",
+    imageQuality: "review",
     notes: shouldFlag ? ["Demo fixture includes an alcohol-content discrepancy."] : ["Demo mode uses simulated extraction; configure a vision provider for real OCR."],
   };
 }

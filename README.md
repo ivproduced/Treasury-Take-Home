@@ -1,6 +1,6 @@
 # Proofmark
 
-Proofmark is an AI-assisted alcohol label verification prototype for TTB compliance agents. It compares application values with visible label evidence, checks the statutory government warning, supports batch review, and keeps the final decision with the agent.
+Proofmark is an AI-assisted alcohol label verification prototype for TTB compliance agents. It compares one application record with visible evidence from up to 20 label artworks, checks the statutory government warning, and keeps the final decision with the agent.
 
 ## Live application
 
@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without credentials, the complete workflow runs in clearly identified **demo simulation** mode. Filenames containing `review`, `mismatch`, or `fail` produce a sample ABV discrepancy so both outcomes are easy to evaluate.
+Open `http://localhost:3000`. Without credentials, the complete workflow runs in persistently identified **demo simulation** mode. Demo extraction does not inspect pixels and can return only `manual-review` or `does-not-match`, never `appears-compliant`. Filenames containing `review`, `mismatch`, or `fail` produce a sample ABV discrepancy.
 
 To use real vision analysis:
 
@@ -33,6 +33,7 @@ The key is read only by the server route and is never included in browser code. 
 npm run lint       # strict TypeScript validation
 npm test           # deterministic comparison tests
 npm run build      # production compilation
+npm run smoke:production # live multipart upload -> comparison result
 npm audit          # production and development dependencies
 npm run sbom       # regenerate the CycloneDX runtime inventory
 ```
@@ -57,13 +58,13 @@ The SBOM is generated from `package-lock.json` and should be regenerated for eve
 
 ## Approach
 
-1. The agent enters the authoritative application values and adds up to 20 JPEG, PNG, or WebP labels.
+1. The agent enters one authoritative application record and adds up to 20 JPEG, PNG, or WebP artworks for that record.
 2. The server validates request size, MIME type, file signature, field lengths, and origin.
 3. Vision AI extracts visible evidence into a strict schema. It does not make the compliance decision.
 4. Deterministic code performs normalized field comparisons and the exact warning check.
 5. The UI presents expected and observed evidence, confidence, and a recommendation for human review.
 
-Sequential batch processing protects the five-second interaction target for each item and avoids overwhelming a model endpoint. A production system handling 200-300 files should use direct-to-approved-object-storage uploads, a durable queue, bounded workers, malware scanning, and progress events rather than increasing the in-request limit.
+Sequential queue processing avoids overwhelming a model endpoint. It is not the stakeholder's 200-300-record batch workflow because it does not pair distinct application records with distinct artwork. That workflow requires a manifest/import contract, direct-to-approved-object-storage uploads, a durable queue, bounded workers, malware scanning, and progress events.
 
 ## Secure AI design
 
@@ -83,10 +84,11 @@ The interface uses semantic landmarks and heading order, explicit input labels, 
 
 ## Assumptions and limitations
 
-- The statutory warning check compares normalized words and separately requires uppercase and bold heading signals. Font size and physical placement require human confirmation because image pixels do not establish printed dimensions reliably.
-- A single application record applies to every file in a batch. A production importer flow should accept a manifest pairing each record to its artwork.
+- The statutory warning check preserves exact case and punctuation while canonicalizing Unicode and whitespace; it separately requires uppercase and bold heading signals. Font size and physical placement require human confirmation because image pixels do not establish printed dimensions reliably.
+- A single application record applies to every artwork in the local queue. This prototype does not claim support for the stakeholder's 200-300 distinct-record batch workflow.
+- Bottler/producer name and address and imported-product country of origin are outside the current four-field prototype schema. They require beverage-specific and conditional rule packs before operational use.
 - In-memory throttling is prototype protection only. Production requires gateway-level distributed rate limits, authentication, authorization, audit events, retention enforcement, and malware scanning.
-- Real AI latency and extraction quality depend on the approved model and network. Demo mode is deterministic and does not inspect pixels.
+- Real AI latency and extraction quality depend on the approved model and network. The five-second requirement remains unverified without real-provider end-to-end latency evidence. Demo mode is deterministic, does not inspect pixels, and always requires manual review unless it simulates a mismatch.
 - This prototype does not integrate with COLA and does not issue legal approvals or rejections.
 
 ## Deploy

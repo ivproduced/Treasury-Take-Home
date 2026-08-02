@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { APPLICATION_FIELD_LIMITS, applicationSchema, compareExtraction, GOVERNMENT_WARNING, type ApplicationFields, type Extraction } from "./review";
+import { APPLICATION_FIELD_LIMITS, applicationSchema, compareExtraction, createDemoExtraction, GOVERNMENT_WARNING, type ApplicationFields, type Extraction } from "./review";
 
 const application: ApplicationFields = {
   brandName: "Stone's Throw",
@@ -42,11 +42,29 @@ describe("compareExtraction", () => {
     expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("fail");
   });
 
+  it("rejects malformed statutory warning punctuation", () => {
+    const malformedWarning = GOVERNMENT_WARNING.replace("WARNING:", "WARNING");
+    const result = compareExtraction(application, { ...compliantExtraction, governmentWarning: malformedWarning });
+
+    expect(result.recommendation).toBe("does-not-match");
+    expect(result.checks.find((check) => check.field === "Government warning")?.status).toBe("fail");
+  });
+
   it("routes unreadable evidence to human review", () => {
     const result = compareExtraction(application, { ...compliantExtraction, brandName: null, imageQuality: "unreadable" });
 
     expect(result.recommendation).toBe("manual-review");
     expect(result.confidence).toBe("low");
+  });
+});
+
+describe("createDemoExtraction", () => {
+  it("always routes simulated evidence to manual review or mismatch", () => {
+    const extraction = createDemoExtraction(application, "label.jpg");
+    const result = compareExtraction(application, extraction);
+
+    expect(result.recommendation).toBe("manual-review");
+    expect(result.imageQuality).toBe("review");
   });
 });
 

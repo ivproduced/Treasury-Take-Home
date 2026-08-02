@@ -48,7 +48,26 @@ function isRateLimited(request: Request) {
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
-  return origin === new URL(request.url).origin;
+
+  let normalizedOrigin: string;
+  try {
+    normalizedOrigin = new URL(origin).origin;
+  } catch {
+    return false;
+  }
+
+  const requestOrigin = new URL(request.url).origin;
+  if (normalizedOrigin === requestOrigin) return true;
+
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || request.headers.get("host");
+  if (!forwardedHost || (forwardedProtocol !== "http" && forwardedProtocol !== "https")) return false;
+
+  try {
+    return normalizedOrigin === new URL(`${forwardedProtocol}://${forwardedHost}`).origin;
+  } catch {
+    return false;
+  }
 }
 
 function hasValidSignature(bytes: Uint8Array, type: string) {

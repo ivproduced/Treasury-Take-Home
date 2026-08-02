@@ -2,7 +2,7 @@
 
 ## Report status
 
-Date: 2026-07-30  
+Date: 2026-08-02
 Scope: Proofmark prototype `0.1.0`  
 Environment: macOS, Node.js production build, local browser at `http://localhost:3000`
 
@@ -13,8 +13,9 @@ This report records prototype verification performed during implementation. It i
 | Check | Command | Result |
 |---|---|---|
 | Strict TypeScript | `npm run lint` | Pass |
-| Unit tests | `npm test` | Pass: 7 tests across 2 files |
+| Unit tests | `npm test` | Pass: 11 tests across 2 files |
 | Production compilation | `npm run build` | Pass |
+| Multipart workflow smoke | `SMOKE_BASE_URL=http://localhost:3100 npm run smoke:production` | Pass: `200`, 5 checks, manual review |
 | Dependency audit | `npm audit` | Pass: 0 known vulnerabilities at test time |
 | Runtime SBOM | `npm run sbom` | Pass: CycloneDX 1.6, 24 runtime components |
 
@@ -23,10 +24,14 @@ Unit coverage verifies:
 1. Case and punctuation differences are tolerated for otherwise equal values.
 2. A conflicting alcohol-content value produces a mismatch.
 3. Incorrect government-warning heading treatment produces a mismatch.
-4. Missing evidence in an unreadable image routes to manual review with low confidence.
-5. Shared application field limits accept boundary values and reject oversized values.
-6. Lengthless multipart bodies over the request limit are rejected before parsing.
-7. Valid lengthless multipart requests remain supported.
+4. Malformed statutory warning punctuation produces a mismatch.
+5. Missing evidence in an unreadable image routes to manual review with low confidence.
+6. Demo simulation routes to manual review instead of appearing compliant.
+7. Shared application field limits accept boundary values and reject oversized values.
+8. A custom-domain origin reconstructed from deployment proxy headers is accepted.
+9. A foreign origin behind the deployment proxy is rejected.
+10. Lengthless multipart bodies over the request limit are rejected before parsing.
+11. Valid lengthless multipart requests remain supported and fail safe in demo mode.
 
 ## Runtime security checks
 
@@ -40,7 +45,7 @@ Unit coverage verifies:
 
 ## Workflow checks
 
-Two valid synthetic PNG fixtures were queued and processed in demo mode. The standard filename produced `appears compliant`; a filename containing `mismatch` produced `does not match`. The live region announced `2 of 2 labels analyzed`, and both items exposed five-row comparison tables.
+A valid synthetic PNG was uploaded and processed through the browser and multipart smoke script in demo mode. It produced `manual review`, exposed `image quality: review`, showed the simulation note, and returned a five-row comparison table. An unsupported text file stayed out of the queue and displayed its filename and rejection reason.
 
 Changing an application field after analysis cleared the stale result and caused the label to be analyzed again. Browser field limits matched the server schema at 120, 160, 40, and 40 characters.
 
@@ -51,7 +56,7 @@ Changing an application field after analysis cleared the stale result and caused
 | Accessibility tree | One main landmark, named regions, ordered H1/H2 headings, labeled fields, table caption/headers |
 | Keyboard | Visible controls reachable in logical order with 3px focus outline |
 | Target size | No visible interactive target below 44px in tested desktop/mobile states |
-| Reflow | No page-level horizontal overflow at 390px width |
+| Reflow | No page-level horizontal overflow at 390px width, including an expanded result table |
 | Status communication | Text and icon accompany color; progress uses `aria-live` |
 | Motion | Reduced-motion media query disables sustained animation |
 | Contrast | Tested critical pairs ranged from 6.0:1 to 15.0:1 |

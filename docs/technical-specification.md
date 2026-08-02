@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-Proofmark verifies whether visible label evidence corresponds to one application record. It supports interactive batch review but does not integrate with COLA, persist records, authenticate users, or issue an approval or rejection.
+Proofmark verifies whether visible label evidence corresponds to one application record. It supports a local queue of artworks for that record, not a distinct-record batch workflow, and does not integrate with COLA, persist records, authenticate users, or issue an approval or rejection. Bottler/producer name and address and imported-product country of origin are outside the current prototype schema.
 
 ## 2. Functional requirements
 
@@ -10,13 +10,13 @@ Proofmark verifies whether visible label evidence corresponds to one application
 |---|---|---|
 | FR-01 | Capture authoritative application values | Brand, class/type, alcohol content, and net contents fields |
 | FR-02 | Accept label artwork | JPEG, PNG, or WebP; up to 8 MiB each |
-| FR-03 | Support a batch | Up to 20 local queue items, processed sequentially |
+| FR-03 | Queue artwork for one record | Up to 20 local queue items, processed sequentially |
 | FR-04 | Extract visible evidence | Optional vision model; explicit simulation when no key exists |
 | FR-05 | Compare fields | Case/punctuation-normalized exact comparison |
-| FR-06 | Check government warning | Normalized exact text plus uppercase and bold heading signals |
+| FR-06 | Check government warning | Exact case and punctuation with Unicode/whitespace canonicalization, plus uppercase and bold heading signals |
 | FR-07 | Preserve judgment | Expected and observed evidence shown for agent review |
 | FR-08 | Handle uncertainty | Missing/unreadable evidence routes to manual review |
-| FR-09 | Report progress and errors | Per-file state, live completion message, recoverable error text |
+| FR-09 | Report progress and errors | Per-file state, live completion message, API errors, and explicit upload-rejection reasons |
 
 ## 3. Quality requirements
 
@@ -66,6 +66,7 @@ Successful response:
   ],
   "recommendation": "appears-compliant",
   "confidence": "high",
+  "imageQuality": "good",
   "notes": [],
   "mode": "ai",
   "durationMs": 820
@@ -78,9 +79,11 @@ Error responses use `{ "error": "human-readable message" }` and an appropriate `
 
 ## 5. Comparison rules
 
-Text normalization applies Unicode NFKC, US English lowercase conversion, replacement of non-alphanumeric runs with one space, and trimming. This intentionally tolerates casing and punctuation differences such as `STONE'S THROW` versus `Stone's Throw`; it does not perform fuzzy semantic matching.
+General field normalization applies Unicode NFKC, US English lowercase conversion, replacement of non-alphanumeric runs with one space, and trimming. This intentionally tolerates casing and punctuation differences such as `STONE'S THROW` versus `Stone's Throw`; it does not perform fuzzy semantic matching. The statutory warning uses a separate canonical comparison that preserves case and punctuation while normalizing Unicode, whitespace runs, and surrounding whitespace.
 
 Any observed conflicting value produces `does-not-match`. Missing evidence or degraded image quality produces `manual-review` unless another field already conflicts. An `appears-compliant` result requires all fields to pass and image quality to be `good`.
+
+Demo simulation is always assigned `review` image quality, so it cannot produce `appears-compliant`.
 
 ## 6. Configuration
 

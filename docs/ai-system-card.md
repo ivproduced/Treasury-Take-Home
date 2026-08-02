@@ -22,7 +22,7 @@
 | System instruction | Inline in `src/app/api/analyze/route.ts` | Constrain task, resist image prompt injection, define output keys | Proofmark source | No separate user data | Must be versioned and evaluated in production |
 | Output validator | Zod `extractionSchema` | Enforce types, enums, lengths, and nullable fields | Proofmark server | Model JSON | Rejects malformed output before business logic |
 | Comparison engine | `compareExtraction` | Compare extracted evidence with application record | Proofmark server | Validated extraction and application values | Deterministic, not an ML component |
-| Demo simulator | `createDemoExtraction` | Support credential-free workflow demonstration | Proofmark server | Application fields and filename | Does not inspect image pixels; always labeled `demo` in output |
+| Demo simulator | `createDemoExtraction` | Support credential-free workflow demonstration | Proofmark server | Application fields and filename | Does not inspect image pixels; always labeled `demo` and routed to manual review or mismatch |
 
 No embeddings, vector database, fine-tuned weights, autonomous agents, retrieval corpus, or model-accessible tools are used.
 

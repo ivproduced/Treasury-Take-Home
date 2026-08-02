@@ -43,7 +43,7 @@ No recommendation authorizes automatic approval or rejection.
 
 ## Operational constraints
 
-The prototype applies one application record to all images in a batch and has a 20-image interactive limit. Operational 200-300 item submissions require a manifest that pairs records and images, asynchronous storage/queue processing, malware scanning, resumability, and supervisor-visible progress. Agency network restrictions require an approved private model endpoint and controlled egress.
+The prototype applies one application record to all artwork in a local queue and has a 20-image interactive limit; this is not batch support for distinct records. Operational 200-300 item submissions require a manifest that pairs records and images, asynchronous storage/queue processing, malware scanning, resumability, and supervisor-visible progress. Agency network restrictions require an approved private model endpoint and controlled egress.
 
 ## Security, privacy, and records
 
